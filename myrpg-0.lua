@@ -78,6 +78,7 @@ levelup={
 	end,
 },
 prev={["Warrior"]=2},
+speed=150,
 levelbonus=function(player,lv)
 	if lv==1 then sgs.AcquireSkill(player,"mashu") end
 end,
@@ -102,6 +103,7 @@ levelup={
 	end,
 },
 prev={["Rider"]=6},
+speed=150,
 levelbonus=function(player,lv)
 	if lv==3 then sgs.AcquireSkill(player,"mengjin") end
 end,
@@ -118,6 +120,7 @@ translation={
 sgs.CreateBoss{
 name="BOSS",
 hp=8,
+speed=80,
 stagenum=1,
 stagechange={
 	events={sgs.HpChanged},

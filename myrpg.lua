@@ -1,7 +1,8 @@
 module("extensions.myrpg",package.seeall)
 extension=sgs.Package("myrpg")
 sgs.ProfList={}
-sgs.GeneralList={}
+sgs.BossList={}
+sgs.SummonedList={}
 sgs.RPGConst={}
 sgs.RPGConst.profcnt="luamyrpg_profcnt"
 sgs.RPGConst.prof="luamyrpg_prof"
@@ -11,21 +12,38 @@ sgs.RPGConst.stage="luamyrpg_stage"
 sgs.RPGConst.maxstage="luamyrpg_maxstage"
 sgs.RPGConst.summoner="luamyrpg_summoner"
 sgs.RPGConst.summonturn="luamyrpg_summonturn"
+sgs.RPGConst.speed="luamyrpg_speed"
+sgs.RPGConst.defaultspeed=100
+sgs.RPGConst.actionslot="luamyrpg_actionslot"
+sgs.RPGConst.defaultactionslot=100
+sgs.RPGConst.cancel="cancel"
+sgs.RPGConst.choosechoice="Please choose a choice"
+sgs.RPGConst.chooseprof="Please choose a profession"
+sgs.RPGConst.chooseskill="Please choose a skill"
+sgs.RPGConst.eachdraw="each draws a card"
+sgs.RPGConst.drawandplay="draw a card and play"
+sgs.RPGConst.role={["lord"]=0,["loyalist"]=0,["rebel"]=1,["renegade"]=1}
+sgs.RPGConst.player=0
+sgs.RPGConst.boss=1
+sgs.RPGConst.summoned=2
 luarpgplayer=sgs.General(extension,"luarpgplayer","god",4,true)
 luarpgdead=sgs.General(extension,"luarpgdead","god",4,true,true)
+--luarpgrule=sgs.General(extension,"luarpgrule","god",4,true,true)
 
 
-function index2prof(getindex)
+function sgs.Index2Prof(getindex)
 	if getindex==0 then return "" end
 	return sgs.ProfList[getindex].name
 end
-function prof2index(getname)
+function sgs.Prof2Index(getname)
 	for var=1,#sgs.ProfList,1 do
 		if sgs.ProfList[var].name==getname then return var end
 	end
 	return 0
 end
-function nextlist(getprof)
+function sgs.GetNextProfList(para)
+	if type(para)=="number" then return sgs.GetNextProfList(sgs.Index2Prof(para)) end
+	local getprof=para
 	local list={}
 	for var=1,#sgs.ProfList,1 do
 		for key,value in pairs(sgs.ProfList[var].prev) do
@@ -35,15 +53,15 @@ function nextlist(getprof)
 	return list
 end
 function sgs.GetProf(player)
-	return index2prof(player:getMark(sgs.RPGConst.prof))
+	return sgs.Index2Prof(player:getMark(sgs.RPGConst.prof))
 end
 function GetLevelConst(getprof)
 	return sgs.RPGConst.level.."_"..getprof
 end
-function GetLevel(player,getprof)
+function sgs.GetLevel(player,getprof)
 	return player:getMark(GetLevelConst(getprof))
 end
-function SetLevel(player,getprof,getnum)
+function sgs.SetLevel(player,getprof,getnum)
 	player:getRoom():setPlayerMark(player,GetLevelConst(getprof),getnum)
 end
 function GetSkillConst(player)
@@ -52,7 +70,7 @@ end
 function sgs.GetStage(player)
 	return player:getMark(sgs.RPGConst.stage)
 end
-function SetStage(player,getnum)
+function sgs.SetStage(player,getnum)
 	player:getRoom():setPlayerMark(player,sgs.RPGConst.stage,getnum)
 end
 function sgs.GetSummoner(player)
@@ -67,25 +85,68 @@ function sgs.GetSummoner(player)
 	sgs.Alert("getsummoner?")
 	return nil
 end
-function SetSummoner(player,summoner)
+function sgs.SetSummoner(player,summoner)
 	player:getRoom():setTag(sgs.RPGConst.summoner.."_"..player:objectName(),sgs.QVariant(summoner:objectName()))
 end
+function sgs.GetType(gname)
+	if gname=="luarpgplayer" then return sgs.RPGConst.player end
+	if sgs.BossList[gname] then return sgs.RPGConst.boss end
+	if sgs.SummonedList[gname] then return sgs.RPGConst.summoned end
+	sgs.Alert(gname.."!!")
+end
+function sgs.InitialSpeed(player)
+	local room=player:getRoom()
+	local v=sgs.RPGConst.defaultspeed
+	local gname=player:getGeneralName()
+	local ptype=sgs.GetType(gname)
+	if ptype==sgs.RPGConst.player then
+		local prof=sgs.GetProf(player)
+		if prof~="" then v=sgs.ProfList[sgs.Prof2Index(prof)].speed end
+	end
+	if ptype==sgs.RPGConst.boss then v=sgs.BossList[gname].speed end
+	if ptype==sgs.RPGConst.summoned then v=sgs.SummonedList[gname].speed end
+	room:setPlayerMark(player,sgs.RPGConst.speed,v)
+	return v
+end
+function sgs.GetSpeed(player)
+	local v=player:getMark(sgs.RPGConst.speed)
+	if v==0 then v=sgs.InitialSpeed(player) end
+	return v
+end
+function sgs.SetSpeed(player,v)
+	if not v then sgs.InitialSpeed(player) end
+	local room=player:getRoom()
+	room:setPlayerMark(player,sgs.RPGConst.speed,v)
+end
+function sgs.GetActionSlot(player)
+	return player:getMark(sgs.RPGConst.actionslot)
+end
+function sgs.SetActionSlot(player,v)
+	v=v or sgs.RPGConst.defaultactionslot
+	v=math.ceil(v)
+	if v<0 then v=0 end
+	player:getRoom():setPlayerMark(player,sgs.RPGConst.actionslot,v)
+end
+function sgs.Role(player,target,opposite)
+	opposite=opposite or false
+	return (sgs.RPGConst.role[player:getRole()]~=sgs.RPGConst.role[target:getRole()])==opposite
+end
 
-function NextProf(player,force)
+function sgs.NextProf(player,force)
 	local room=player:getRoom()
 	local prof0=sgs.GetProf(player)
 	local list={}
-	for key,value in pairs(nextlist(prof0)) do
-		if GetLevel(player,index2prof(key))>=value then table.insert(list,sgs.ProfList[key].name) end
+	for key,value in pairs(sgs.GetNextProfList(prof0)) do
+		if sgs.GetLevel(player,sgs.Index2Prof(key))>=value then table.insert(list,sgs.ProfList[key].name) end
 	end
 	if #list==0 then return nil end
 	if not force then table.insert(list,"cancel") end
-	local ch=room:askForChoice(player,"luamyrpg",table.concat(list,"+"))
+	local ch=room:askForChoice(player,sgs.RPGConst.chooseprof,table.concat(list,"+"))
 	if ch=="cancel" then return nil end
 	return ch
 end
 
-function ProfSkill(player)
+function sgs.ProfSkill(player)
 	local room=player:getRoom()
 	local cnt=player:getMark(sgs.RPGConst.profcnt)
 	local list={}
@@ -102,7 +163,7 @@ function ProfSkill(player)
 	end
 	local list2={}
 	for var=1,cnt,1 do
-		local ch=room:askForChoice(player,"luamyrpg",table.concat(list,"+"))
+		local ch=room:askForChoice(player,sgs.RPGConst.chooseskill,table.concat(list,"+"))
 		table.insert(list2,ch)
 		table.removeOne(list,ch)
 	end
@@ -114,48 +175,88 @@ function ProfSkill(player)
 	end
 end
 
-function LevelBonus(player,getprof)
+function sgs.LevelBonus(player,getprof)
 	if not getprof then return nil end
-	local index=prof2index(getprof)
+	local index=sgs.Prof2Index(getprof)
 	if sgs.ProfList[index].levelbonus then
-		sgs.ProfList[index].levelbonus(player,GetLevel(player,getprof))
+		sgs.ProfList[index].levelbonus(player,sgs.GetLevel(player,getprof))
 		--ProfSkill(player)
 	end
 end
 
-function ProfUp(player,getprof)
+function sgs.ProfUp(player,getprof)
 	if not getprof then return nil end
 	--ProfClear(player)
 	local room=player:getRoom()
 	local index0=player:getMark(sgs.RPGConst.prof)	
 	if index0~=0 then
-		for key,_ in pairs(nextlist(index2prof(index0))) do
+		for key,_ in pairs(sgs.GetNextProfList(index0)) do
 			if sgs.ProfList[key].levelup then
 				local skname=sgs.ProfList[key].levelup:objectName()
 				if player:hasSkill(skname) then room:detachSkillFromPlayer(player,skname) end
 			end
-			SetLevel(player,index2prof(key),0)
+			sgs.SetLevel(player,sgs.Index2Prof(key),0)
 		end
 	end
 		
-	local index=prof2index(getprof)
+	local index=sgs.Prof2Index(getprof)
 	room:setPlayerMark(player,sgs.RPGConst.profcnt,player:getMark(sgs.RPGConst.profcnt)+1)
 	room:setPlayerMark(player,sgs.RPGConst.prof,index)
 	room:changePlayerGeneral2(player,getprof)
 	--room:setPlayerProperty(player,"screenname",sgs.QVariant(getprof))
 	--player:speak(getprof)
-	for key,_ in pairs(nextlist(getprof)) do
+	for key,_ in pairs(sgs.GetNextProfList(getprof)) do
 		if sgs.ProfList[key].levelup then
 			local skname=sgs.ProfList[key].levelup:objectName()
 			if not player:hasSkill(skname) then room:acquireSkill(player,skname) end
 		end
 	end
+	sgs.InitialSpeed(player)
 	if sgs.ProfList[index].profbonus then
-		sgs.ProfList[index].profbonus(player,index2prof(index0))
+		sgs.ProfList[index].profbonus(player,sgs.Index2Prof(index0))
 	end
-	ProfSkill(player)
+	sgs.ProfSkill(player)
 end
 
+function sgs.ComboPlayer(player,current)
+	local room=player:getRoom()
+	local ch=room:askForChoice(player,sgs.RPGConst.choosechoice,sgs.RPGConst.eachdraw.."+"..sgs.RPGConst.drawandplay)
+	if ch==sgs.RPGConst.eachdraw then
+		player:drawCards(1)
+		current:drawCards(1)
+	elseif ch==sgs.RPGConst.drawandplay then
+		player:drawCards(1)
+		local phlist=sgs.PhaseList()
+		phlist:append(sgs.Player_Play)
+		player:play(phlist)
+	end
+end
+
+function sgs.NextPlayer(player)
+	local room=player:getRoom()
+	local mintime=10000
+	local minplist={}
+	for _,p in sgs.qlist(room:getAllPlayers()) do
+		local ptime=sgs.GetActionSlot(p)/sgs.GetSpeed(p)
+		if ptime<mintime then
+			mintime=ptime
+			minplist={p}
+		elseif ptime==mintime then
+			table.insert(minplist,p)
+		end
+	end
+	local inext=math.random(1,#minplist)
+	local pnext=minplist[inext]
+	for var=1,#minplist,1 do
+		if var~=inext and sgs.Role(pnext,minplist[var]) then sgs.ComboPlayer(minplist[var],pnext) end
+	end
+	for _,p in sgs.qlist(room:getAllPlayers()) do
+		p:speak(sgs.GetActionSlot(p).."|"..sgs.GetSpeed(p))
+		sgs.SetActionSlot(p,sgs.GetActionSlot(p)-sgs.GetSpeed(p)*mintime)
+	end
+	room:setCurrent(pnext)
+	room:getThread():trigger(sgs.TurnStart,room,pnext)
+end
 
 luarpgplayersk=sgs.CreateTriggerSkill{
 name="luarpgplayersk",
@@ -163,24 +264,24 @@ events={sgs.GameStart,sgs.NonTrigger,sgs.EventPhaseStart},
 on_trigger=function(self,event,player,data)
 	local room=player:getRoom()
 	if event==sgs.GameStart then
-		local chprof=NextProf(player,true)
-		ProfUp(player,chprof)
+		local chprof=sgs.NextProf(player,true)
+		sgs.ProfUp(player,chprof)
 	end
 	if event==sgs.NonTrigger then
 		local getprof=data:toString()
-		SetLevel(player,getprof,GetLevel(player,getprof)+1)
-		player:speak(player:objectName().." "..getprof.." level:"..GetLevel(player,getprof))
-		LevelBonus(player,getprof)
-		local chprof=NextProf(player)
+		sgs.SetLevel(player,getprof,sgs.GetLevel(player,getprof)+1)
+		player:speak(player:objectName().." "..getprof.." level:"..sgs.GetLevel(player,getprof))
+		sgs.LevelBonus(player,getprof)
+		local chprof=sgs.NextProf(player)
 		if chprof then
-			ProfUp(player,chprof)
+			sgs.ProfUp(player,chprof)
 		end
 	end
 	if event==sgs.EventPhaseStart then
 		if player:getPhase()==sgs.Player_RoundStart then
-			ProfSkill(player)
+			sgs.ProfSkill(player)
 		elseif player:getPhase()==sgs.Player_NotActive then
-			ProfSkill(player)
+			sgs.ProfSkill(player)
 		end
 	end
 end,
@@ -196,9 +297,29 @@ on_trigger=function(self,event,player,data)
 end,
 }
 
-
-luarpgplayer:addSkill(luarpgplayersk)
-luarpgdead:addSkill(luarpgdeadsk)
+luarpgrulesk=sgs.CreateTriggerSkill{
+name="luarpgrulesk",
+events={sgs.GameStart,sgs.EventPhaseChanging,sgs.TurnStart},
+on_trigger=function(self,event,player,data)
+	local room=player:getRoom()
+	if event==sgs.EventPhaseChanging then
+		local phasechange=data:toPhaseChange()
+		if phasechange.to==sgs.Player_NotActive then
+			sgs.NextPlayer(player)
+		end
+	elseif event==sgs.TurnStart then
+		player:speak("turnstart")
+		sgs.SetActionSlot(player)
+	elseif event==sgs.GameStart then
+		for _,p in sgs.qlist(room:getAllPlayers()) do
+			sgs.SetActionSlot(p,math.random(1,sgs.RPGConst.defaultactionslot))
+		end
+	end
+end,
+can_trigger=function(self,target)
+	return true
+end,
+}
 
 function addsk(sk)
 	if not sgs.Sanguosha:getSkill(sk:objectName()) then
@@ -207,6 +328,11 @@ function addsk(sk)
 		sgs.Sanguosha:addSkills(sklist)
 	end
 end
+luarpgplayer:addSkill(luarpgplayersk)
+luarpgdead:addSkill(luarpgdeadsk)
+addsk(luarpgrulesk)
+
+
 function cmpltrans(t)
 	local key
 	local value
@@ -240,6 +366,7 @@ function sgs.CreateProf(spec)
 	local prof={}
 	prof["name"]=spec.name	
 	prof.gn=sgs.General(extension,spec.name,"god",4,true,true)
+	prof["speed"]=spec.speed or sgs.RPGConst.defaultspeed
 	if spec.prev then
 		assert(type(spec.prev)=="table")
 		prof["prev"]=spec.prev		
@@ -290,6 +417,7 @@ function sgs.CreateBoss(spec)
 	local gntable={}
 	gntable.gn=sgs.AssertGeneral(spec)
 	gntable.skills={}
+	gntable.speed=spec.speed or sgs.RPGConst.defaultspeed
 	spec.stagenum=spec.stagenum or 0
 	assert(type(spec.stagenum)=="number")
 	if spec.stagechange then
@@ -312,7 +440,7 @@ function sgs.CreateBoss(spec)
 				end
 				if event==sgs.NonTrigger then
 					if sgs.GetStage(player)>=player:getMark(sgs.RPGConst.maxstage) then return false end
-					SetStage(player,sgs.GetStage(player)+1)
+					sgs.SetStage(player,sgs.GetStage(player)+1)
 					player:speak(self:objectName()..": stage"..sgs.GetStage(player))
 					spec.stageeffect(player,sgs.GetStage(player))
 				end
@@ -322,7 +450,8 @@ function sgs.CreateBoss(spec)
 		gntable.gn:addSkill(sk)
 		table.insert(gntable.skills,sk)
 	end
-	table.insert(sgs.GeneralList,gntable)
+	sgs.BossList[spec.name]=gntable
+	--table.insert(sgs.BossList,gntable)
 	if spec.translation then
 		assert(type(spec.translation)=="table")
 		sgs.LoadTranslationTable(cmpltrans(spec.translation))
@@ -335,6 +464,7 @@ function sgs.CreateSummoned(spec)
 	local gntable={}
 	gntable.gn=sgs.AssertGeneral(spec)
 	gntable.skills={}
+	gntable.speed=spec.speed or sgs.RPGConst.defaultspeed
 	if spec.weakness then
 		assert(type(spec.weakness)=="table")
 		spec.weakness.name="#"..spec.name
@@ -371,7 +501,8 @@ function sgs.CreateSummoned(spec)
 	}
 	gntable.gn:addSkill(sk0)
 	table.insert(gntable.skills,sk0)
-	table.insert(sgs.GeneralList,gntable)
+	sgs.SummonedList[spec.name]=gntable
+	--table.insert(sgs.SummonedList,gntable)
 	if spec.translation then
 		assert(type(spec.translation)=="table")
 		sgs.LoadTranslationTable(cmpltrans(spec.translation))
@@ -423,30 +554,22 @@ function sgs.HasSkill(player,skname)
 	if not data then return false end
 	return table.contains(data:toString():split("+"),skname)
 end
-function sgs.GetRole(player,opposite)
-	opposite=opposite or false
-	local role="rebel"
-	if (player:getRole()=="lord" or player:getRole()=="loyalist") and not opposite then role="loyalist" end
-	if (player:getRole()=="rebel" or player:getRole()=="renegade") and opposite then role="loyalist" end
-	return role
-end
+
 function sgs.DeadCount(player,opposite)
 	opposite=opposite or false
-	local role=sgs.GetRole(player,opposite)
 	local room=player:getRoom()
 	local cnt=0
 	for _,p in sgs.qlist(room:getAllPlayers(true)) do
-		if p:getRole()==role and not p:isAlive() then cnt=cnt+1 end
+		if sgs.Role(player,p,opposite) and not p:isAlive() then cnt=cnt+1 end
 	end
 	return cnt
 end
 function sgs.GetDead(player,opposite)
 	opposite=opposite or false
 	if sgs.DeadCount(player,opposite)==0 then return nil end
-	local role=sgs.GetRole(player,opposite)
 	local room=player:getRoom()
 	for _,p in sgs.qlist(room:getAllPlayers(true)) do
-		if p:getRole()==role and not p:isAlive() then return p end
+		if sgs.Role(player,p,opposite) and not p:isAlive() then return p end
 	end
 	return nil
 end
@@ -456,7 +579,7 @@ function sgs.Summon(player,summoned,opposite)
 	local pdead=sgs.GetDead(player,opposite)	
 	local room=player:getRoom()
 	room:revivePlayer(pdead)
-	SetSummoner(pdead,player)	
+	sgs.SetSummoner(pdead,player)	
 	pdead:clearHistory()
 	if pdead:getKingdom()~=sgs.Sanguosha:getGeneral(summoned):getKingdom() then room:setPlayerProperty(pdead,"kingdom",sgs.QVariant(sgs.Sanguosha:getGeneral(summoned):getKingdom())) end
 	if not pdead:faceUp() then pdead:turnOver() end
@@ -473,7 +596,7 @@ function sgs.GetSummonTurn(player)
 	return player:getMark(sgs.RPGConst.summonturn)
 end
 
-function myfiles()
+function exfiles()
 	local files=sgs.GetFileNames("extensions")
 	for _,file in ipairs(files) do
 		if file:match("^myrpg%-.+%.lua$") then
@@ -482,7 +605,8 @@ function myfiles()
 		end
 	end	
 end
-myfiles()
+
+exfiles()
 
 --[[
 function sgs.CreateGeneral(spec)
