@@ -1,0 +1,25 @@
+Warrior 龙胆
+	使用或打出杀
+	lv3 武圣
+	lv5 Fighter
+	lv6 武神
+	装备马
+	lv1 马术
+	lv2 Rider
+
+Fighter 激昂
+	杀命中
+	lv3 无双
+	lv4 Berserker
+	lv5 冲阵
+	
+Berserker 咆哮
+
+Rider 铁骑
+	装备马时杀命中
+	lv3 猛进
+	lv6 Knight or Centaur
+	
+Knight 飞影
+
+Centaur 强袭
