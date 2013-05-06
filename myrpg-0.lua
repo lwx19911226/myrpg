@@ -117,9 +117,9 @@ translation={
 }
 
 
-sgs.CreateBoss{
+sgs.CreateMonster{
 name="BOSS",
-hp=8,
+hp=4,
 speed=80,
 stagenum=1,
 stagechange={
@@ -140,7 +140,7 @@ translation={
 },
 }
 
-sgs.CreateSummoned{
+sgs.CreateMonster{
 name="summoned",
 hp=3,
 weakness={
@@ -175,4 +175,20 @@ end,
 translation={
 	["summoned"]="召唤",
 },
+}
+
+sgs.CreateScene{
+name="testscene",
+scenenum=2,
+sceneenemy={
+[1]={["BOSS"]=1},
+[2]={["BOSS"]=2},
+},
+sceneeffect=function(room,currentscene)
+	if currentscene==1 then
+		room:getAllPlayers(true):first():speak("scene1")
+	elseif currentscene==2 then
+		room:getAllPlayers(true):first():speak("scene2")
+	end
+end,
 }
