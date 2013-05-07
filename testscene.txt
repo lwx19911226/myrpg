@@ -1,0 +1,7 @@
+
+general:luarpgplayer role:rebel acquireSkills:#luarpgrulescenesk,#luarpgrulespeedsk 
+general:luarpgplayer role:rebel 
+general:luarpgplayer role:rebel 
+general:luarpgdead role:loyalist 
+general:FireSprite role:lord starter:true 
+general:luarpgdead role:loyalist 

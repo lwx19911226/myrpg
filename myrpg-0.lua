@@ -26,8 +26,8 @@ levelup={
 },
 prev={["Warrior"]=5},
 levelbonus=function(player,lv)
-	if lv==3 then sgs.AcquireSkill(player,"wusheng") end
-	if lv==6 then sgs.AcquireSkill(player,"wushen") end
+	if lv==3 then sgs.AcquireSkill(player,"tiaoxin") end
+	if lv==7 then sgs.AcquireSkill(player,"wushen") end
 end,
 profbonus=function(player,prevprof)
 	player:getRoom():loseMaxHp(player)
@@ -103,7 +103,7 @@ levelup={
 	end,
 },
 prev={["Rider"]=6},
-speed=150,
+speed=125,
 levelbonus=function(player,lv)
 	if lv==3 then sgs.AcquireSkill(player,"mengjin") end
 end,
@@ -118,31 +118,41 @@ translation={
 
 
 sgs.CreateMonster{
-name="BOSS",
-hp=4,
-speed=80,
-stagenum=1,
+name="FireSprite",
+hp=8,
+speed=90,
+skills={"shaoying","lihuo"},
+stagenum=2,
 stagechange={
-	events={sgs.HpChanged},
+	events={sgs.HpChanged,sgs.Dying},
 	on_trigger=function(self,event,player,data)
 		if event==sgs.HpChanged then
 			if sgs.GetStage(player)==0 and player:getHp()*2<=player:getMaxHp() then
 				sgs.NextStage(player)
 			end
 		end
+		if event==sgs.Dying then
+			if data:toDying().who:objectName()~=player:objectName() then return false end
+			if sgs.GetStage(player)==1 then
+				sgs.NextStage(player)
+			end
+		end
 	end,
 },
 stageeffect=function(player,currentstage)
-	if currentstage==1 then player:speak("stage1") sgs.Summon(player,"summoned",false) end
+	if currentstage==0 then player:drawCards(6) end
+	if currentstage==1 then sgs.Summon(player,"Flame",false) sgs.Summon(player,"Flame",false) end
+	if currentstage==2 then sgs.SetSpeed(player,200) end
 end,
 translation={
-	["BOSS"]="魔王",
+	["FireSprite"]="炎灵",
 },
 }
 
 sgs.CreateMonster{
-name="summoned",
+name="Flame",
 hp=3,
+skills={"zonghuo","huoji"},
 weakness={
 	events={sgs.CardsMoveOneTime,sgs.TurnStart},
 	on_trigger=function(self,event,player,data)
@@ -162,18 +172,16 @@ antisummoneffect=function(player,summoner,weakness)
 		player:speak("no weakness")
 	elseif weakness=="kongcheng" then
 		player:speak(weakness)
-		player:getRoom():loseHp(summoner)
+		if summoner:isAlive() then player:getRoom():loseHp(summoner) end
 	elseif weakness=="turn" then
 		player:speak(weakness)
 	end
 end,
 summoneffect=function(player,summoner)
-	player:speak("summoned")
-	summoner:speak("summoner")
 	player:drawCards(3)
 end,
 translation={
-	["summoned"]="召唤",
+	["Flame"]="火焰",
 },
 }
 
@@ -181,8 +189,8 @@ sgs.CreateScene{
 name="testscene",
 scenenum=2,
 sceneenemy={
-[1]={["BOSS"]=1},
-[2]={["BOSS"]=2},
+[1]={["FireSprite"]=1},
+[2]={["FireSprite"]=2},
 },
 sceneeffect=function(room,currentscene)
 	if currentscene==1 then
